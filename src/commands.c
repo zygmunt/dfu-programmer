@@ -128,6 +128,16 @@ static int32_t execute_setsecure( dfu_device_t *device,
     return SUCCESS;
 }
 
+static int32_t execute_dfumode( dfu_device_t *device,
+                                struct programmer_arguments *args )
+{
+    // DFU_DETACH:
+    return
+        libusb_control_transfer(device->handle, 0b00100001, 0, 0, device->interface, NULL, 0, 0) == 0
+            ? SUCCESS
+            : UNSPECIFIED_ERROR;
+}
+
 // TODO : split this into a new command (no file is needed) - also general
 // format of this program is that only 1 command is run at a time.. caveat is
 // that if program sets a section in memory to '\0' and serialize sets it
@@ -976,6 +986,8 @@ int32_t execute_command( dfu_device_t *device,
             return execute_setfuse( device, args );
         case com_setsecure:
             return execute_setsecure( device, args );
+        case com_dfumode:
+            return execute_dfumode( device, args );
         default:
             fprintf( stderr, "Not supported at this time.\n" );
     }

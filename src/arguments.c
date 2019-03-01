@@ -204,6 +204,8 @@ static struct option_mapping_structure command_map[] = {
     { "start",        com_start_app },
     { "bin2hex",      com_bin2hex   },
     { "hex2bin",      com_hex2bin   },
+    { "runtime",      com_launch    },
+    { "dfumode",      com_dfumode   },
     { NULL }
 };
 
@@ -487,7 +489,8 @@ static int32_t assign_target( struct programmer_arguments *args,
                     strncpy( args->device_type_string, "AVR",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = true;
-                    //args->honor_interfaceclass = false;
+                    // FIXME:
+                    args->honor_interfaceclass = true;
                     break;
                 case ADC_AVR32:
                     strncpy( args->device_type_string, "AVR32",
@@ -510,6 +513,7 @@ static int32_t assign_target( struct programmer_arguments *args,
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     break;
             }
+            // FIXME:
             /* There have been several reports on the mailing list of dfu-programmer
                reporting "No device present" when there clearly is. It seems Atmel's
                bootloader has changed (or is buggy) and doesn't report interface class
@@ -517,7 +521,11 @@ static int32_t assign_target( struct programmer_arguments *args,
                VID and PID so why would we worry about this? Don't use the device-
                specific value, just ignore the error for all device types.
             */
-            args->honor_interfaceclass = false;
+//            #if defined(HONOR)
+//            args->honor_interfaceclass = true;
+//            #else
+//            args->honor_interfaceclass = false;
+//            #endif
             return 0;
         }
 

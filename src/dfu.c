@@ -47,6 +47,8 @@
 
 #define USB_CLASS_APP_SPECIFIC  0xfe
 #define DFU_SUBCLASS            0x01
+#define DFU_PROTOCOL_RUNTIME    0x01
+#define DFU_PROTOCOL_DFUMODE    0x01
 
 /* Wait for 20 seconds before a timeout since erasing/flashing can take some time.
  * The longest erase cycle is for the AT32UC3A0512-TA automotive part,
@@ -74,10 +76,12 @@ static uint16_t transaction = 0;
 #ifdef HAVE_LIBUSB_1_0
 static int32_t dfu_find_interface( struct libusb_device *device,
                                    const dfu_bool honor_interfaceclass,
-                                   const uint8_t bNumConfigurations);
+                                   const uint8_t bNumConfigurations,
+                                   const uint8_t expected_protocol);
 #else
 static int32_t dfu_find_interface( const struct usb_device *device,
-                                   const dfu_bool honor_interfaceclass );
+                                   const dfu_bool honor_interfaceclass,
+                                   const uint8_t expected_protocol);
 #endif
 /*  Used to find the dfu interface for a device if there is one.
  *
@@ -319,15 +323,17 @@ struct libusb_device *dfu_device_init( const uint32_t vendor,
                                        const uint32_t device_address,
                                        dfu_device_t *dfu_device,
                                        const dfu_bool initial_abort,
-                                       const dfu_bool honor_interfaceclass ) {
+                                       const dfu_bool honor_interfaceclass,
+                                       const uint8_t expected_protocol ) {
     libusb_device **list;
     size_t i,devicecount;
     extern libusb_context *usbcontext;
     int32_t retries = 4;
 
-    TRACE( "%s( %u, %u, %p, %s, %s )\n", __FUNCTION__, vendor, product,
+    TRACE( "%s( %u, %u, %p, %s, %s, %d )\n", __FUNCTION__, vendor, product,
            dfu_device, ((true == initial_abort) ? "true" : "false"),
-           ((true == honor_interfaceclass) ? "true" : "false") );
+           ((true == honor_interfaceclass) ? "true" : "false"),
+           expected_protocol);
 
     DEBUG( "%s(%08x, %08x)\n",__FUNCTION__, vendor, product );
 
@@ -358,18 +364,39 @@ retry:
              * let's try to find the DFU interface, open the device
              * and claim it. */
             tmp = dfu_find_interface( device, honor_interfaceclass,
-                                      descriptor.bNumConfigurations );
+                                      descriptor.bNumConfigurations,
+                                      expected_protocol );
 
             if( 0 <= tmp ) {    /* The interface is valid. */
                 dfu_device->interface = tmp;
 
                 if( 0 == libusb_open(device, &dfu_device->handle) ) {
                     DEBUG( "opened interface %d...\n", tmp );
+
+                    {
+                        struct libusb_config_descriptor *config = NULL;
+                        if (libusb_get_active_config_descriptor(device, &config) == 0)
+                        {
+                            for (int i = 0; i < config->bNumInterfaces; ++i) {
+                                if (libusb_kernel_driver_active(dfu_device->handle, i) == 1)
+                                {
+                                    libusb_detach_kernel_driver(dfu_device->handle, i);
+                                }
+                            }
+                            libusb_free_config_descriptor(config);
+                        }
+                    }
+
+                    // FIXME: hardcoded configuration number !!!
                     if( 0 == libusb_set_configuration(dfu_device->handle, 1) ) {
                         DEBUG( "set configuration %d...\n", 1 );
                         if( 0 == libusb_claim_interface(dfu_device->handle, dfu_device->interface) )
                         {
                             DEBUG( "claimed interface %d...\n", dfu_device->interface );
+
+                            if (expected_protocol == 1) {
+                                return device;
+                            }
 
                             switch( dfu_make_idle(dfu_device, initial_abort) )
                             {
@@ -406,20 +433,22 @@ retry:
     return NULL;
 }
 #else
-struct usb_device *dfu_device_init( const uint32_t vendor,
+struct usb_device *dfu_device_init(const uint32_t vendor,
                                     const uint32_t product,
                                     const uint32_t bus_number,
                                     const uint32_t device_address,
                                     dfu_device_t *dfu_device,
                                     const dfu_bool initial_abort,
-                                    const dfu_bool honor_interfaceclass ) {
+                                    const dfu_bool honor_interfaceclass,
+                                    const uint8_t expected_protocol ) {
     struct usb_bus *usb_bus;
     struct usb_device *device;
     int32_t retries = 4;
 
     TRACE( "%s( %u, %u, %p, %s, %s )\n", __FUNCTION__, vendor, product,
            dfu_device, ((true == initial_abort) ? "true" : "false"),
-           ((true == honor_interfaceclass) ? "true" : "false") );
+           ((true == honor_interfaceclass) ? "true" : "false"),
+           expected_protocol );
 
 retry:
     if( 0 < retries ) {
@@ -440,11 +469,26 @@ retry:
                     /* We found a device that looks like it matches...
                      * let's try to find the DFU interface, open the device
                      * and claim it. */
-                    tmp = dfu_find_interface( device, honor_interfaceclass );
+                    tmp = dfu_find_interface( device, honor_interfaceclass, expected_protocol );
                     if( 0 <= tmp ) {
                         /* The interface is valid. */
                         dfu_device->interface = tmp;
                         dfu_device->handle = usb_open( device );
+
+//                        {
+//                            struct libusb_config_descriptor *config = NULL;
+//                            if (libusb_get_active_config_descriptor(device, &config) == 0)
+//                            {
+//                                for (int i = 0; i < config->bNumInterfaces; ++i) {
+//                                    if (libusb_kernel_driver_active(dfu_device->handle, i) == 1)
+//                                    {
+//                                        libusb_detach_kernel_driver(dfu_device->handle, i);
+//                                    }
+//                                }
+//                                libusb_free_config_descriptor(config);
+//                            }
+//                        }
+
                         if( NULL != dfu_device->handle ) {
                             if( 0 == usb_set_configuration(dfu_device->handle, 1) ) {
                                 if( 0 == usb_claim_interface(dfu_device->handle, dfu_device->interface) ) {
@@ -589,7 +633,8 @@ char* dfu_status_to_string( const int32_t status ) {
 #ifdef HAVE_LIBUSB_1_0
 static int32_t dfu_find_interface( struct libusb_device *device,
                                    const dfu_bool honor_interfaceclass,
-                                   const uint8_t bNumConfigurations) {
+                                   const uint8_t bNumConfigurations,
+                                   const uint8_t expected_protocol ) {
     int32_t c,i,s;
 
     TRACE( "%s()\n", __FUNCTION__ );
@@ -625,8 +670,14 @@ static int32_t dfu_find_interface( struct libusb_device *device,
                     if(    (USB_CLASS_APP_SPECIFIC == setting.bInterfaceClass)
                         && (DFU_SUBCLASS == setting.bInterfaceSubClass) )
                     {
-                        DEBUG( "Found DFU Interface: %d\n", setting.bInterfaceNumber );
-                        return setting.bInterfaceNumber;
+                        if (expected_protocol == setting.bInterfaceProtocol) {
+                            DEBUG( "Found DFU Inteface: %d\n", setting.bInterfaceNumber );
+                            return setting.bInterfaceNumber;
+                        } else {
+                            // DEBUG( "Found DFU Inteface: %d, but protocol is incorrect: %d\n", setting.bInterfaceNumber, expected_protocol);
+                            fprintf( stderr,  "Found DFU Inteface: %d, but protocol is incorrect: %d, expected: %d\n",
+                                     setting.bInterfaceNumber, setting.bInterfaceProtocol, expected_protocol);
+                        }
                     }
                 } else {
                     /* If there is a bug in the DFU firmware, return the first
@@ -644,7 +695,8 @@ static int32_t dfu_find_interface( struct libusb_device *device,
 }
 #else
 static int32_t dfu_find_interface( const struct usb_device *device,
-                                   const dfu_bool honor_interfaceclass ) {
+                                   const dfu_bool honor_interfaceclass,
+                                   const uint8_t expected_protocol) {
     int32_t c, i;
     struct usb_config_descriptor *config;
     struct usb_interface_descriptor *interface;
@@ -660,10 +712,16 @@ static int32_t dfu_find_interface( const struct usb_device *device,
             if( true == honor_interfaceclass ) {
                 /* Check if the interface is a DFU interface */
                 if(    (USB_CLASS_APP_SPECIFIC == interface->bInterfaceClass)
-                    && (DFU_SUBCLASS == interface->bInterfaceSubClass) )
+                    && (DFU_SUBCLASS == interface->bInterfaceSubClass))
                 {
-                    DEBUG( "Found DFU Inteface: %d\n", interface->bInterfaceNumber );
-                    return interface->bInterfaceNumber;
+                    if (expected_protocol == interface->bInterfaceProtocol) {
+                        DEBUG( "Found DFU Inteface: %d\n", interface->bInterfaceNumber );
+                        return interface->bInterfaceNumber;
+                    } else {
+                        //DEBUG( "Found DFU Inteface: %d, but protocol is incorrect: %d\n", interface->bInterfaceNumber, expected_protocol);
+                        fprintf( stderr,  "Found DFU Inteface: %d, but protocol is incorrect: %d, expected: %d\n",
+                                 interface->bInterfaceNumber, interface->bInterfaceProtocol, expected_protocol);
+                    }
                 }
             } else {
                 /* If there is a bug in the DFU firmware, return the first

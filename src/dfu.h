@@ -170,7 +170,8 @@ struct usb_device
                                        const uint32_t dev_addr,
                                        dfu_device_t *device,
                                        const dfu_bool initial_abort,
-                                       const dfu_bool honor_interfaceclass );
+                                       const dfu_bool honor_interfaceclass,
+                                       const uint8_t expected_protocol);
 /*  dfu_device_init is designed to find one of the usb devices which match
  *  the vendor and product parameters passed in.
  *

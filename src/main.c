@@ -89,7 +89,8 @@ int main( int argc, char **argv )
                                   args.bus_id, args.device_address,
                                   &dfu_device,
                                   args.initial_abort,
-                                  args.honor_interfaceclass );
+                                  args.honor_interfaceclass,
+                                  args.command == com_dfumode ? 1 : 2 );
 
         if( NULL == device ) {
             fprintf( stderr, "%s: no device present.\n", progname );

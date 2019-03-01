@@ -47,8 +47,6 @@
 
 #define USB_CLASS_APP_SPECIFIC  0xfe
 #define DFU_SUBCLASS            0x01
-#define DFU_PROTOCOL_RUNTIME    0x01
-#define DFU_PROTOCOL_DFUMODE    0x01
 
 /* Wait for 20 seconds before a timeout since erasing/flashing can take some time.
  * The longest erase cycle is for the AT32UC3A0512-TA automotive part,

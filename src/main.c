@@ -90,7 +90,7 @@ int main( int argc, char **argv )
                                   &dfu_device,
                                   args.initial_abort,
                                   args.honor_interfaceclass,
-                                  args.command == com_dfumode ? 1 : 2 );
+                                  args.command == com_dfumode ? DFU_PROTOCOL_RUNTIME : DFU_PROTOCOL_DFUMODE );
 
         if( NULL == device ) {
             fprintf( stderr, "%s: no device present.\n", progname );

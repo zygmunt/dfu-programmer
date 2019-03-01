@@ -67,6 +67,8 @@
 #define DFU_STATUS_ERROR_UNKNOWN        0x0e
 #define DFU_STATUS_ERROR_STALLEDPKT     0x0f
 
+#define DFU_PROTOCOL_RUNTIME    0x01
+#define DFU_PROTOCOL_DFUMODE    0x02
 
 /* This is based off of DFU_GETSTATUS
  *

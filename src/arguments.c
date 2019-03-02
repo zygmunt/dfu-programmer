@@ -350,6 +350,7 @@ static void usage()
     fprintf( stderr, "global-options:\n"
                      "        --quiet\n"
                      "        --debug level    (level is an integer specifying level of detail)\n"
+                     "        --dishonor_interfaceclass ignoring checking usb class interface (removed hardcoded values from code)\n"
                      "        Global options can be used with any command and must come\n"
                      "        after the command and before any file or data value\n" );
     fprintf( stderr, "\n" );
@@ -483,26 +484,26 @@ static int32_t assign_target( struct programmer_arguments *args,
                     strncpy( args->device_type_string, "8051",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = false;
-                    //args->honor_interfaceclass = true;
+
                     break;
                 case ADC_AVR:
                     strncpy( args->device_type_string, "AVR",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = true;
                     // FIXME:
-                    args->honor_interfaceclass = true;
+
                     break;
                 case ADC_AVR32:
                     strncpy( args->device_type_string, "AVR32",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = false;
-                    //args->honor_interfaceclass = true;
+
                     break;
                 case ADC_XMEGA:
                     strncpy( args->device_type_string, "XMEGA",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = true;
-                    //args->honor_interfaceclass = false;
+
                     break;
                 case DC_STM32:
                     strncpy( args->device_type_string, "STM32",
@@ -521,11 +522,7 @@ static int32_t assign_target( struct programmer_arguments *args,
                VID and PID so why would we worry about this? Don't use the device-
                specific value, just ignore the error for all device types.
             */
-//            #if defined(HONOR)
-//            args->honor_interfaceclass = true;
-//            #else
-//            args->honor_interfaceclass = false;
-//            #endif
+            // >>> --dishonor_interfaceclass
             return 0;
         }
 
@@ -540,6 +537,16 @@ static int32_t assign_global_options( struct programmer_arguments *args,
                                       char **argv )
 {
     size_t i = 0;
+
+    args->honor_interfaceclass = true;
+    /* Find '--dishonor_interfaceclass' if it is here */
+    for( i = 0; i < argc; i++ ) {
+        if( 0 == strcmp("--dishonor_interfaceclass", argv[i]) ) {
+            *argv[i] = '\0';
+            args->honor_interfaceclass = false;
+            break;
+        }
+    }
 
     /* Find '--quiet' if it is here */
     for( i = 0; i < argc; i++ ) {

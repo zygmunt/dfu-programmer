@@ -9,7 +9,8 @@ HEADERS += \
     src/dfu.h \
     src/intel_hex.h \
     src/stm32.h \
-    src/util.h
+    src/util.h \
+    src/usb.h
 
 SOURCES += \
     src/arguments.c \
@@ -19,6 +20,9 @@ SOURCES += \
     src/intel_hex.c \
     src/main.c \
     src/stm32.c \
-    src/util.c
+    src/util.c \
+    src/usb.c
 
 DEFINES += HAVE_LIBUSB_1_0
+CONFIG += link_pkgconfig
+PKGCONFIG += libusb

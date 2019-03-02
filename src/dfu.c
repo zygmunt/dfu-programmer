@@ -330,7 +330,7 @@ struct libusb_device *dfu_device_init( const uint32_t vendor,
 
     TRACE( "%s( %u, %u, %p, %s, %s, %d )\n", __FUNCTION__, vendor, product,
            dfu_device, ((true == initial_abort) ? "true" : "false"),
-           ((true == honor_interfaceclass) ? "true" : "false"),
+           (honor_interfaceclass ? "true" : "false"),
            expected_protocol);
 
     DEBUG( "%s(%08x, %08x)\n",__FUNCTION__, vendor, product );
@@ -371,6 +371,7 @@ retry:
                 if( 0 == libusb_open(device, &dfu_device->handle) ) {
                     DEBUG( "opened interface %d...\n", tmp );
 
+                    // HERE
                     {
                         struct libusb_config_descriptor *config = NULL;
                         if (libusb_get_active_config_descriptor(device, &config) == 0)
@@ -444,8 +445,8 @@ struct usb_device *dfu_device_init(const uint32_t vendor,
     int32_t retries = 4;
 
     TRACE( "%s( %u, %u, %p, %s, %s )\n", __FUNCTION__, vendor, product,
-           dfu_device, ((true == initial_abort) ? "true" : "false"),
-           ((true == honor_interfaceclass) ? "true" : "false"),
+           dfu_device, (initial_abort ? "true" : "false"),
+           (honor_interfaceclass ? "true" : "false"),
            expected_protocol );
 
 retry:

@@ -31,6 +31,7 @@
 #include "stm32.h"
 #include "atmel.h"
 #include "util.h"
+#include "dfu.h"
 
 #define COMMAND_DEBUG_THRESHOLD 40
 
@@ -131,11 +132,8 @@ static int32_t execute_setsecure( dfu_device_t *device,
 static int32_t execute_dfumode( dfu_device_t *device,
                                 struct programmer_arguments *args )
 {
-    // DFU_DETACH:
-    return
-        libusb_control_transfer(device->handle, 0b00100001, 0, 0, device->interface, NULL, 0, 0) == 0
-            ? SUCCESS
-            : UNSPECIFIED_ERROR;
+    (void)args;
+    return dfu_detach(device, 0) == 0 ? SUCCESS : UNSPECIFIED_ERROR;
 }
 
 // TODO : split this into a new command (no file is needed) - also general

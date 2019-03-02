@@ -63,7 +63,7 @@ int main( int argc, char **argv )
     }
 
     if( debug >= 200 ) {
-        libusb_set_debug(usbcontext, debug );
+        libusb_set_option(usbcontext, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_DEBUG);
     }
 
     if( !(args.command == com_bin2hex || args.command == com_hex2bin) ) {

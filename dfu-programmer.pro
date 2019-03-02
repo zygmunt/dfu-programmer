@@ -23,6 +23,5 @@ SOURCES += \
     src/util.c \
     src/usb.c
 
-DEFINES += HAVE_LIBUSB_1_0
 CONFIG += link_pkgconfig
 PKGCONFIG += libusb

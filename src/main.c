@@ -23,11 +23,7 @@
 #endif
 #include <stdio.h>
 #include <string.h>
-#ifdef HAVE_LIBUSB_1_0
 #include <libusb.h>
-#else
-#include <usb.h>
-#endif
 
 #include "config.h"
 #include "dfu-device.h"
@@ -38,9 +34,7 @@
 
 
 int debug;
-#ifdef HAVE_LIBUSB_1_0
 libusb_context *usbcontext;
-#endif
 
 int main( int argc, char **argv )
 {
@@ -49,11 +43,7 @@ int main( int argc, char **argv )
     int status;
     dfu_device_t dfu_device;
     struct programmer_arguments args;
-#ifdef HAVE_LIBUSB_1_0
     struct libusb_device *device = NULL;
-#else
-    struct usb_device *device = NULL;
-#endif
 
     memset( &args, 0, sizeof(args) );
     memset( &dfu_device, 0, sizeof(dfu_device) );
@@ -67,21 +57,13 @@ int main( int argc, char **argv )
         return SUCCESS;
     }
 
-#ifdef HAVE_LIBUSB_1_0
     if (libusb_init(&usbcontext)) {
         fprintf( stderr, "%s: can't init libusb.\n", progname );
         return DEVICE_ACCESS_ERROR;
     }
-#else
-    usb_init();
-#endif
 
     if( debug >= 200 ) {
-#ifdef HAVE_LIBUSB_1_0
         libusb_set_debug(usbcontext, debug );
-#else
-        usb_set_debug( debug );
-#endif
     }
 
     if( !(args.command == com_bin2hex || args.command == com_hex2bin) ) {
@@ -108,11 +90,8 @@ error:
     if( NULL != dfu_device.handle ) {
         int rv;
 
-#ifdef HAVE_LIBUSB_1_0
         rv = libusb_release_interface( dfu_device.handle, dfu_device.interface );
-#else
-        rv = usb_release_interface( dfu_device.handle, dfu_device.interface );
-#endif
+
         /* The RESET command sometimes causes the usb_release_interface command to fail.
            It is not obvious why this happens but it may be a glitch due to the hardware
            reset in the attached device. In any event, since reset causes a USB detach
@@ -127,19 +106,10 @@ error:
     }
 
     if( NULL != dfu_device.handle ) {
-#ifdef HAVE_LIBUSB_1_0
         libusb_close(dfu_device.handle);
-#else
-        if( 0 != usb_close(dfu_device.handle) ) {
-            fprintf( stderr, "%s: failed to close the handle.\n", progname );
-            retval = DEVICE_ACCESS_ERROR;
-        }
-#endif
     }
 
-#ifdef HAVE_LIBUSB_1_0
     libusb_exit(usbcontext);
-#endif
 
     return retval;
 }

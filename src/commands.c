@@ -133,7 +133,7 @@ static int32_t execute_dfumode( dfu_device_t *device,
                                 struct programmer_arguments *args )
 {
     (void)args;
-    return dfu_detach(device, 0) == 0 ? SUCCESS : UNSPECIFIED_ERROR;
+    return dfu_detach(device, DFU_DETACH_TIMEOUT) == 0 ? SUCCESS : UNSPECIFIED_ERROR;
 }
 
 // TODO : split this into a new command (no file is needed) - also general

@@ -5,11 +5,16 @@
 
 #include "dfu.h"
 
-// ________  P R O T O T Y P E S  _______________________________
-int32_t dfu_find_interface( struct libusb_device *device,
+libusb_device *dfu_find_device(const uint32_t vendor,
+                               const uint32_t product,
+                               const uint32_t bus_number,
+                               const uint32_t device_address);
+
+dfu_bool dfu_find_interface(libusb_device *device,
                             const dfu_bool honor_interfaceclass,
-                            const uint8_t bNumConfigurations,
-                            const uint8_t expected_protocol);
+                            const uint8_t expected_protocol,
+                            uint8_t * bConfigurationValue,
+                            uint8_t * bInterfaceNumber);
 /*  Used to find the dfu interface for a device if there is one.
  *
  *  device - the device to search
@@ -18,6 +23,9 @@ int32_t dfu_find_interface( struct libusb_device *device,
  *
  *  returns the interface number if found, < 0 otherwise
  */
+
+void dfu_detach_drivers(libusb_device *device,
+                        dfu_device_t *dfu_device);
 
 libusb_device *dfu_device_init( const uint32_t vendor,
                                 const uint32_t product,

@@ -274,7 +274,7 @@ static void list_targets(int mode)
 
     map = target_map;
 
-    while( 0 != *((int32_t *) map) ) {
+    for (; map->name; ++map) {
         if( device_type != map->device_type ) {
             device_type = map->device_type;
             switch( device_type ) {
@@ -324,7 +324,6 @@ static void list_targets(int mode)
                 col = 0;
             }
         }
-        map++;
         group_count++;
     }
     if( 0 != col )
@@ -345,7 +344,7 @@ static void usage()
 {
     fprintf( stderr, PACKAGE_STRING "\n");
     fprintf( stderr, PACKAGE_URL "\n" );
-    fprintf( stderr, "Usage: dfu-programmer target[:usb-bus,usb-addr] command [options] "
+    fprintf( stderr, "Usage: dfu-programmer target[[:vid:pid][,usb-bus,usb-addr]] command [options] "
                      "[global-options] [file|data]\n\n" );
     fprintf( stderr, "global-options:\n"
                      "        --quiet\n"
@@ -398,13 +397,11 @@ static int32_t assign_option( int32_t *arg,
                               char *value,
                               struct option_mapping_structure *map )
 {
-    while( 0 != *((int32_t *) map) ) {
+    for (; map->name; ++map) {
         if( 0 == strcasecmp(value, map->name) ) {
             *arg = map->value;
             return 0;
         }
-
-        map++;
     }
 
     return -1;
@@ -414,17 +411,28 @@ static int32_t assign_target( struct programmer_arguments *args,
                               char *value,
                               struct target_mapping_structure *map )
 {
-    while( 0 != *((int32_t *) map) ) {
+    for (; map->name; ++map) {
         size_t name_len = strlen(map->name);
-        if( 0 == strncasecmp(value, map->name, name_len)
-            && (value[name_len] == '\0'
-                || value[name_len] == ':')) {
+        if( 0 == strncasecmp(value, map->name, name_len)) {
             args->target  = map->value;
             args->chip_id = map->chip_id;
             args->vendor_id = map->vendor_id;
             args->bus_id = 0;
             args->device_address = 0;
+
             if (value[name_len] == ':') {
+              int vid = 0;
+              int pid = 0;
+              if( 2 != sscanf(&value[name_len+1], "%x:%x", &vid, &pid) )
+                return -1;
+              if (vid <= 0) return -1;
+              if (pid <= 0) return -1;
+              args->vendor_id = vid;
+              args->chip_id = pid;
+            }
+
+            const char * pos = strchr(value, ',');
+            if (pos) {
               /* The target name includes USB bus and address info.
                * This is used to differentiate between multiple dfu
                * devices with the same vendor/chip ID numbers. By
@@ -433,13 +441,14 @@ static int32_t assign_target( struct programmer_arguments *args,
                */
               int bus = 0;
               int address = 0;
-              if( 2 != sscanf(&value[name_len+1], "%i,%i", &bus, &address) )
+              if( 2 != sscanf(pos + 1, "%i,%i", &bus, &address) )
                 return -1;
               if (bus <= 0) return -1;
               if (address <= 0) return -1;
               args->bus_id = bus;
               args->device_address = address;
             }
+
             args->device_type = map->device_type;
             args->eeprom_memory_size = map->eeprom_memory_size;
             args->flash_page_size = map->flash_page_size;
@@ -525,8 +534,6 @@ static int32_t assign_target( struct programmer_arguments *args,
             // >>> --dishonor_interfaceclass
             return 0;
         }
-
-        map++;
     }
 
     return -1;

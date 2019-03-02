@@ -31,6 +31,7 @@
 #include "atmel.h"
 #include "arguments.h"
 #include "commands.h"
+#include "usb.h"
 
 
 int debug;

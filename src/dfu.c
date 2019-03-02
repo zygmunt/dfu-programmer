@@ -32,27 +32,6 @@
 #include "util.h"
 #include "dfu-bool.h"
 
-/* DFU commands */
-#define DFU_DETACH      0
-#define DFU_DNLOAD      1
-#define DFU_UPLOAD      2
-#define DFU_GETSTATUS   3
-#define DFU_CLRSTATUS   4
-#define DFU_GETSTATE    5
-#define DFU_ABORT       6
-
-#define USB_CLASS_APP_SPECIFIC  0xfe
-#define DFU_SUBCLASS            0x01
-
-/* Wait for 20 seconds before a timeout since erasing/flashing can take some time.
- * The longest erase cycle is for the AT32UC3A0512-TA automotive part,
- * which needs a timeout of at least 19 seconds to erase the whole flash. */
-#define DFU_TIMEOUT 20000
-
-/* Time (in ms) for the device to wait for the usb reset after being told to detach
- * before the giving up going into dfu mode. */
-#define DFU_DETACH_TIMEOUT 1000
-
 #define DFU_DEBUG_THRESHOLD         100
 #define DFU_TRACE_THRESHOLD         200
 #define DFU_MESSAGE_DEBUG_THRESHOLD 300
@@ -65,48 +44,6 @@
                                DFU_MESSAGE_DEBUG_THRESHOLD, __VA_ARGS__ )
 
 static uint16_t transaction = 0;
-
-// ________  P R O T O T Y P E S  _______________________________
-static int32_t dfu_find_interface( struct libusb_device *device,
-                                   const dfu_bool honor_interfaceclass,
-                                   const uint8_t bNumConfigurations,
-                                   const uint8_t expected_protocol);
-/*  Used to find the dfu interface for a device if there is one.
- *
- *  device - the device to search
- *  honor_interfaceclass - if the actual interface class information
- *                         should be checked, or ignored (bug in device DFU code)
- *
- *  returns the interface number if found, < 0 otherwise
- */
-
-static int32_t dfu_make_idle( dfu_device_t *device, const dfu_bool initial_abort );
-/*  Gets the device into the dfuIDLE state if possible.
- *
- *  device    - the dfu device to commmunicate with
- *
- *  returns 0 on success, 1 if device was reset, error otherwise
- */
-
-static int32_t dfu_transfer_out( dfu_device_t *device,
-                                 uint8_t request,
-                                 const int32_t value,
-                                 uint8_t* data,
-                                 const size_t length );
-
-static int32_t dfu_transfer_in( dfu_device_t *device,
-                                uint8_t request,
-                                const int32_t value,
-                                uint8_t* data,
-                                const size_t length );
-
-static void dfu_msg_response_output( const char *function, const int32_t result );
-/*  Used to output the response from our USB request in a human reable
- *  form.
- *
- *  function - the calling function to output on behalf of
- *  result   - the result to interpret
- */
 
 // ________  F U N C T I O N S  _______________________________
 void dfu_set_transaction_num( uint16_t newnum ) {
@@ -304,123 +241,6 @@ int32_t dfu_abort( dfu_device_t *device ) {
     return result;
 }
 
-struct libusb_device *dfu_device_init( const uint32_t vendor,
-                                       const uint32_t product,
-                                       const uint32_t bus_number,
-                                       const uint32_t device_address,
-                                       dfu_device_t *dfu_device,
-                                       const dfu_bool initial_abort,
-                                       const dfu_bool honor_interfaceclass,
-                                       const uint8_t expected_protocol ) {
-    libusb_device **list;
-    size_t i,devicecount;
-    extern libusb_context *usbcontext;
-    int32_t retries = 4;
-
-    TRACE( "%s( %u, %u, %p, %s, %s, %d )\n", __FUNCTION__, vendor, product,
-           dfu_device, ((true == initial_abort) ? "true" : "false"),
-           (honor_interfaceclass ? "true" : "false"),
-           expected_protocol);
-
-    DEBUG( "%s(%08x, %08x)\n",__FUNCTION__, vendor, product );
-
-retry:
-    devicecount = libusb_get_device_list( usbcontext, &list );
-
-    for( i = 0; i < devicecount; i++ ) {
-        libusb_device *device = list[i];
-        struct libusb_device_descriptor descriptor;
-
-        if( libusb_get_device_descriptor(device, &descriptor) ) {
-             DEBUG( "Failed in libusb_get_device_descriptor\n" );
-             break;
-        }
-
-        DEBUG( "%2d: 0x%04x, 0x%04x\n", (int) i,
-                descriptor.idVendor, descriptor.idProduct );
-
-        if( (vendor  == descriptor.idVendor) &&
-            (product == descriptor.idProduct) &&
-            ((bus_number == 0)
-             || ((libusb_get_bus_number(device) == bus_number) &&
-                 (libusb_get_device_address(device) == device_address))) )
-        {
-            int32_t tmp;
-            DEBUG( "found device at USB:%d,%d\n", libusb_get_bus_number(device), libusb_get_device_address(device) );
-            /* We found a device that looks like it matches...
-             * let's try to find the DFU interface, open the device
-             * and claim it. */
-            tmp = dfu_find_interface( device, honor_interfaceclass,
-                                      descriptor.bNumConfigurations,
-                                      expected_protocol );
-
-            if( 0 <= tmp ) {    /* The interface is valid. */
-                dfu_device->interface = tmp;
-
-                if( 0 == libusb_open(device, &dfu_device->handle) ) {
-                    DEBUG( "opened interface %d...\n", tmp );
-
-                    // HERE
-                    {
-                        struct libusb_config_descriptor *config = NULL;
-                        if (libusb_get_active_config_descriptor(device, &config) == 0)
-                        {
-                            for (int i = 0; i < config->bNumInterfaces; ++i) {
-                                if (libusb_kernel_driver_active(dfu_device->handle, i) == 1)
-                                {
-                                    libusb_detach_kernel_driver(dfu_device->handle, i);
-                                }
-                            }
-                            libusb_free_config_descriptor(config);
-                        }
-                    }
-
-                    // FIXME: hardcoded configuration number !!!
-                    if( 0 == libusb_set_configuration(dfu_device->handle, 1) ) {
-                        DEBUG( "set configuration %d...\n", 1 );
-                        if( 0 == libusb_claim_interface(dfu_device->handle, dfu_device->interface) )
-                        {
-                            DEBUG( "claimed interface %d...\n", dfu_device->interface );
-
-                            if (expected_protocol == 1) {
-                                return device;
-                            }
-
-                            switch( dfu_make_idle(dfu_device, initial_abort) )
-                            {
-                                case 0:
-                                    libusb_free_device_list( list, 1 );
-                                    return device;
-
-                                case 1:
-                                    retries--;
-                                    libusb_free_device_list( list, 1 );
-                                    goto retry;
-                            }
-
-                            DEBUG( "Failed to put the device in dfuIDLE mode.\n" );
-                            libusb_release_interface( dfu_device->handle, dfu_device->interface );
-                            retries = 4;
-                        } else {
-                            DEBUG( "Failed to claim the DFU interface.\n" );
-                        }
-                    } else {
-                        DEBUG( "Failed to set configuration.\n" );
-                    }
-
-                    libusb_close(dfu_device->handle);
-                }
-            }
-        }
-    }
-
-    libusb_free_device_list( list, 1 );
-    dfu_device->handle = NULL;
-    dfu_device->interface = 0;
-
-    return NULL;
-}
-
 char* dfu_state_to_string( const int32_t state ) {
     char *message = "unknown state";
 
@@ -519,71 +339,7 @@ char* dfu_status_to_string( const int32_t status ) {
     return message;
 }
 
-static int32_t dfu_find_interface( struct libusb_device *device,
-                                   const dfu_bool honor_interfaceclass,
-                                   const uint8_t bNumConfigurations,
-                                   const uint8_t expected_protocol ) {
-    int32_t c,i,s;
-
-    TRACE( "%s()\n", __FUNCTION__ );
-
-    /* Loop through all of the configurations */
-    for( c = 0; c < bNumConfigurations; c++ ) {
-        struct libusb_config_descriptor *config;
-
-        if( libusb_get_config_descriptor(device, c, &config) ) {
-            DEBUG( "can't get_config_descriptor: %d\n", c );
-            return -1;
-        }
-        DEBUG( "config %d: maxpower=%d*2 mA\n", c, config->MaxPower );
-
-        /* Loop through all of the interfaces */
-        for( i = 0; i < config->bNumInterfaces; i++ ) {
-            struct libusb_interface interface;
-
-            interface = config->interface[i];
-            DEBUG( "interface %d\n", i );
-
-            /* Loop through all of the settings */
-            for( s = 0; s < interface.num_altsetting; s++ ) {
-                struct libusb_interface_descriptor setting;
-
-                setting = interface.altsetting[s];
-                DEBUG( "setting %d: class:%d, subclass %d, protocol:%d\n", s,
-                                setting.bInterfaceClass, setting.bInterfaceSubClass,
-                                setting.bInterfaceProtocol );
-
-                if( honor_interfaceclass ) {
-                    /* Check if the interface is a DFU interface */
-                    if(    (USB_CLASS_APP_SPECIFIC == setting.bInterfaceClass)
-                        && (DFU_SUBCLASS == setting.bInterfaceSubClass) )
-                    {
-                        if (expected_protocol == setting.bInterfaceProtocol) {
-                            DEBUG( "Found DFU Inteface: %d\n", setting.bInterfaceNumber );
-                            return setting.bInterfaceNumber;
-                        } else {
-                            // DEBUG( "Found DFU Inteface: %d, but protocol is incorrect: %d\n", setting.bInterfaceNumber, expected_protocol);
-                            fprintf( stderr,  "Found DFU Inteface: %d, but protocol is incorrect: %d, expected: %d\n",
-                                     setting.bInterfaceNumber, setting.bInterfaceProtocol, expected_protocol);
-                        }
-                    }
-                } else {
-                    /* If there is a bug in the DFU firmware, return the first
-                     * found interface. */
-                    DEBUG( "Found DFU Interface: %d\n", setting.bInterfaceNumber );
-                    return setting.bInterfaceNumber;
-                }
-            }
-        }
-
-        libusb_free_config_descriptor( config );
-    }
-
-    return -1;
-}
-
-static int32_t dfu_make_idle( dfu_device_t *device,
-                              const dfu_bool initial_abort ) {
+int32_t dfu_make_idle( dfu_device_t *device, const dfu_bool initial_abort ) {
     dfu_status_t status;
     int32_t retries = 4;
 
@@ -640,11 +396,11 @@ static int32_t dfu_make_idle( dfu_device_t *device,
     return -2;
 }
 
-static int32_t dfu_transfer_out( dfu_device_t *device,
-                                 uint8_t request,
-                                 const int32_t value,
-                                 uint8_t* data,
-                                 const size_t length ) {
+int32_t dfu_transfer_out( dfu_device_t *device,
+                          uint8_t request,
+                          const int32_t value,
+                          uint8_t* data,
+                          const size_t length ) {
     return libusb_control_transfer( device->handle,
                 /* bmRequestType */ LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
                 /* bRequest      */ request,
@@ -655,11 +411,11 @@ static int32_t dfu_transfer_out( dfu_device_t *device,
                                     DFU_TIMEOUT );
 }
 
-static int32_t dfu_transfer_in( dfu_device_t *device,
-                                uint8_t request,
-                                const int32_t value,
-                                uint8_t* data,
-                                const size_t length ) {
+int32_t dfu_transfer_in( dfu_device_t *device,
+                         uint8_t request,
+                         const int32_t value,
+                         uint8_t* data,
+                         const size_t length ) {
     return libusb_control_transfer( device->handle,
                 /* bmRequestType */ LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
                 /* bRequest      */ request,
@@ -670,8 +426,7 @@ static int32_t dfu_transfer_in( dfu_device_t *device,
                                     DFU_TIMEOUT );
 }
 
-static void dfu_msg_response_output( const char *function,
-                                     const int32_t result ) {
+void dfu_msg_response_output( const char *function, const int32_t result ) {
     char *msg = NULL;
 
     if( 0 <= result ) {

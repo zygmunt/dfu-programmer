@@ -74,12 +74,63 @@
  *  1 unsigned byte iString
 */
 
+/* DFU commands */
+#define DFU_DETACH      0
+#define DFU_DNLOAD      1
+#define DFU_UPLOAD      2
+#define DFU_GETSTATUS   3
+#define DFU_CLRSTATUS   4
+#define DFU_GETSTATE    5
+#define DFU_ABORT       6
+
+#define USB_CLASS_APP_SPECIFIC  0xfe
+#define DFU_SUBCLASS            0x01
+
+/* Wait for 20 seconds before a timeout since erasing/flashing can take some time.
+ * The longest erase cycle is for the AT32UC3A0512-TA automotive part,
+ * which needs a timeout of at least 19 seconds to erase the whole flash. */
+#define DFU_TIMEOUT 20000
+
+/* Time (in ms) for the device to wait for the usb reset after being told to detach
+ * before the giving up going into dfu mode. */
+#define DFU_DETACH_TIMEOUT 1000
+
 typedef struct {
     uint8_t bStatus;
     uint32_t bwPollTimeout;
     uint8_t bState;
     uint8_t iString;
 } dfu_status_t;
+
+// ________  P R O T O T Y P E S  _______________________________
+
+int32_t dfu_make_idle( dfu_device_t *device, const dfu_bool initial_abort );
+/*  Gets the device into the dfuIDLE state if possible.
+ *
+ *  device    - the dfu device to commmunicate with
+ *
+ *  returns 0 on success, 1 if device was reset, error otherwise
+ */
+
+int32_t dfu_transfer_out( dfu_device_t *device,
+                          uint8_t request,
+                          const int32_t value,
+                          uint8_t* data,
+                          const size_t length );
+
+int32_t dfu_transfer_in( dfu_device_t *device,
+                         uint8_t request,
+                         const int32_t value,
+                         uint8_t* data,
+                         const size_t length );
+
+void dfu_msg_response_output( const char *function, const int32_t result );
+/*  Used to output the response from our USB request in a human reable
+ *  form.
+ *
+ *  function - the calling function to output on behalf of
+ *  result   - the result to interpret
+ */
 
 void dfu_set_transaction_num( uint16_t newnum );
 /* set / reset the wValue parameter to a given value. this number is
@@ -154,25 +205,6 @@ int32_t dfu_abort( dfu_device_t *device );
  *  device    - the dfu device to commmunicate with
  *
  *  returns 0 or < 0 on an error
- */
-
-
-struct libusb_device *dfu_device_init( const uint32_t vendor,
-                                       const uint32_t product,
-                                       const uint32_t bus,
-                                       const uint32_t dev_addr,
-                                       dfu_device_t *device,
-                                       const dfu_bool initial_abort,
-                                       const dfu_bool honor_interfaceclass,
-                                       const uint8_t expected_protocol);
-/*  dfu_device_init is designed to find one of the usb devices which match
- *  the vendor and product parameters passed in.
- *
- *  vendor  - the vender number of the device to look for
- *  product - the product number of the device to look for
- *  [out] device - the dfu device to commmunicate with
- *
- *  return a pointer to the usb_device if found, or NULL otherwise
  */
 
 char* dfu_status_to_string( const int32_t status );

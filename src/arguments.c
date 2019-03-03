@@ -493,26 +493,21 @@ static int32_t assign_target( struct programmer_arguments *args,
                     strncpy( args->device_type_string, "8051",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = false;
-
                     break;
                 case ADC_AVR:
                     strncpy( args->device_type_string, "AVR",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = true;
-                    // FIXME:
-
                     break;
                 case ADC_AVR32:
                     strncpy( args->device_type_string, "AVR32",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = false;
-
                     break;
                 case ADC_XMEGA:
                     strncpy( args->device_type_string, "XMEGA",
                              DEVICE_TYPE_STRING_MAX_LENGTH );
                     args->initial_abort = true;
-
                     break;
                 case DC_STM32:
                     strncpy( args->device_type_string, "STM32",

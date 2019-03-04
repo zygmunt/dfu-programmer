@@ -1,0 +1,6 @@
+#include "version.h"
+
+const char * dfu_programmer_name = "dfu-programmer";
+const char * dfu_programmer_version = "@VERSION@";
+const char * dfu_programmer_git_hash = "@GIT_HASH@";
+const char * dfu_programmer_url = "https://github.com/zygmunt/dfu-programmer";

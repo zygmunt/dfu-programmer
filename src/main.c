@@ -18,20 +18,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#if HAVE_CONFIG_H
-# include <config.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <libusb.h>
 
-#include "config.h"
 #include "dfu-device.h"
 #include "dfu.h"
 #include "atmel.h"
 #include "arguments.h"
 #include "commands.h"
 #include "usb.h"
+#include "version.h"
 
 
 int debug;
@@ -39,7 +36,6 @@ libusb_context *usbcontext;
 
 int main( int argc, char **argv )
 {
-    static const char *progname = PACKAGE;
     int retval = SUCCESS;
     int status;
     dfu_device_t dfu_device;
@@ -59,7 +55,7 @@ int main( int argc, char **argv )
     }
 
     if (libusb_init(&usbcontext)) {
-        fprintf( stderr, "%s: can't init libusb.\n", progname );
+        fprintf( stderr, "%s: can't init libusb.\n", dfu_programmer_name );
         return DEVICE_ACCESS_ERROR;
     }
 
@@ -76,7 +72,7 @@ int main( int argc, char **argv )
                                   args.command == com_dfumode ? DFU_PROTOCOL_RUNTIME : DFU_PROTOCOL_DFUMODE );
 
         if( NULL == device ) {
-            fprintf( stderr, "%s: no device present.\n", progname );
+            fprintf( stderr, "%s: no device present.\n", dfu_programmer_name );
             retval = DEVICE_ACCESS_ERROR;
             goto error;
         }
@@ -101,7 +97,7 @@ error:
         if( 0 != rv && !(com_launch == args.command &&
                 args.com_launch_config.noreset == 0) ) {
             fprintf( stderr, "%s: failed to release interface %d.\n",
-                             progname, dfu_device.interface );
+                             dfu_programmer_name, dfu_device.interface );
             retval = DEVICE_ACCESS_ERROR;
         }
     }

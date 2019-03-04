@@ -26,8 +26,8 @@
 
 #include "dfu-bool.h"
 #include "dfu-device.h"
-#include "config.h"
 #include "arguments.h"
+#include "version.h"
 
 // Modes used to display the list of targets.
 #define LIST_STD        0
@@ -332,18 +332,26 @@ static void list_targets(int mode)
         fprintf( stdout, "</p>\n" );
 }
 
+static void print_info()
+{
+    if (dfu_programmer_git_hash && dfu_programmer_name[0]) {
+        fprintf( stderr, "%s %s (%s)\n", dfu_programmer_name, dfu_programmer_version, dfu_programmer_git_hash);
+    } else {
+        fprintf( stderr, "%s %s\n", dfu_programmer_name, dfu_programmer_version);
+    }
+    fprintf( stderr, "%s\n", dfu_programmer_url);
+}
+
 static void basic_help()
 {
-    fprintf( stderr, PACKAGE_STRING "\n");
-    fprintf( stderr, PACKAGE_URL "\n" );
+    print_info();
     fprintf( stderr, "Type 'dfu-programmer --help'    for a list of commands\n" );
     fprintf( stderr, "     'dfu-programmer --targets' to list supported target devices\n" );
 }
 
 static void usage()
 {
-    fprintf( stderr, PACKAGE_STRING "\n");
-    fprintf( stderr, PACKAGE_URL "\n" );
+    print_info();
     fprintf( stderr, "Usage: dfu-programmer target[[:vid:pid][,usb-bus,usb-addr]] command [options] "
                      "[global-options] [file|data]\n\n" );
     fprintf( stderr, "global-options:\n"
@@ -1049,7 +1057,7 @@ int32_t parse_arguments( struct programmer_arguments *args,
     /* Special case - check for the help commands which do not require a device type */
     if( argc == 2 ) {
         if( 0 == strcasecmp(argv[1], "--version") ) {
-            fprintf( stderr, PACKAGE_STRING "\n");
+            print_info();
             return 1;
         }
         if( 0 == strcasecmp(argv[1], "--targets") ) {

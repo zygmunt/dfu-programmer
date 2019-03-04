@@ -25,7 +25,6 @@
 
 #include "dfu-bool.h"
 #include "dfu-device.h"
-#include "config.h"
 #include "arguments.h"
 #include "dfu.h"
 #include "stm32.h"

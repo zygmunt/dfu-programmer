@@ -29,7 +29,6 @@
 
 #include "dfu-bool.h"
 #include "dfu-device.h"
-#include "config.h"
 #include "arguments.h"
 #include "dfu.h"
 #include "atmel.h"

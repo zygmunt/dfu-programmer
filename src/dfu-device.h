@@ -1,9 +1,6 @@
 #ifndef __DFU_DEVICE_H__
 #define __DFU_DEVICE_H__
 
-#if HAVE_CONFIG_H
-# include <config.h>
-#endif
 #include <stdint.h>
 #include <libusb.h>
 

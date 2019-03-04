@@ -24,7 +24,6 @@
 #include <string.h>
 
 #include "dfu-bool.h"
-#include "config.h"
 #include "commands.h"
 #include "arguments.h"
 #include "intel_hex.h"

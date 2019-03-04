@@ -948,12 +948,14 @@ int32_t execute_command( dfu_device_t *device,
             args->com_flash_data.segment = mem_user;
             args->command = com_launch;
             return execute_flash( device, args );
+
         case com_start_app:
             args->com_launch_config.noreset = true;
         case com_reset:
             args->command = com_launch;
         case com_launch:
             return execute_launch( device, args );
+
         case com_get:
             return execute_get( device, args );
         case com_getfuse:

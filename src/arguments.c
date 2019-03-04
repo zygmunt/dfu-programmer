@@ -188,24 +188,25 @@ static struct target_mapping_structure target_map[] = {
 static struct option_mapping_structure command_map[] = {
     { "configure",    com_configure },
     { "read",         com_read      },
+    { "erase",        com_erase     },
+    { "flash",        com_flash     },
+    { "get",          com_get       },
+    { "getfuse",      com_getfuse   },
+    { "setfuse",      com_setfuse   },
+    { "setsecure",    com_setsecure },
+    { "launch",       com_launch    },
+    { "dfumode",      com_dfumode   },
+
     { "dump",         com_dump      },
     { "dump-eeprom",  com_edump     },
     { "dump-user",    com_udump     },
-    { "erase",        com_erase     },
-    { "flash",        com_flash     },
     { "flash-user",   com_user      },
     { "flash-eeprom", com_eflash    },
-    { "get",          com_get       },
-    { "getfuse",      com_getfuse   },
-    { "launch",       com_launch    },
-    { "reset",        com_reset     },
-    { "setfuse",      com_setfuse   },
-    { "setsecure",    com_setsecure },
-    { "start",        com_start_app },
     { "bin2hex",      com_bin2hex   },
     { "hex2bin",      com_hex2bin   },
-    { "runtime",      com_launch    },
-    { "dfumode",      com_dfumode   },
+
+    { "start",        com_start_app },
+    { "reset",        com_reset     },
     { NULL }
 };
 
@@ -345,59 +346,61 @@ static void print_info()
 static void basic_help()
 {
     print_info();
-    fprintf( stderr, "Type 'dfu-programmer --help'    for a list of commands\n" );
-    fprintf( stderr, "     'dfu-programmer --targets' to list supported target devices\n" );
+    fprintf( stderr, "Type 'dfu-programmer --help'    for a list of commands\n"
+                     "     'dfu-programmer --targets' to list supported target devices\n" );
 }
 
 static void usage()
 {
     print_info();
-    fprintf( stderr, "Usage: dfu-programmer target[[:vid:pid][,usb-bus,usb-addr]] command [options] "
-                     "[global-options] [file|data]\n\n" );
-    fprintf( stderr, "global-options:\n"
-                     "        --quiet\n"
-                     "        --debug level    (level is an integer specifying level of detail)\n"
-                     "        --dishonor_interfaceclass ignoring checking usb class interface (removed hardcoded values from code)\n"
-                     "        Global options can be used with any command and must come\n"
-                     "        after the command and before any file or data value\n" );
-    fprintf( stderr, "\n" );
-    fprintf( stderr, "command summary:\n" );
-    fprintf( stderr, "        launch       [--no-reset]\n" );
-    fprintf( stderr, "        read         [--force] [--bin] [(flash)|--user|--eeprom]\n" );
-    fprintf( stderr, "        erase        [--force] [--suppress-validation]\n" );
-    fprintf( stderr, "        flash        [--force] [(flash)|--user|--eeprom]\n"
-                     "                     [--suppress-validation]\n"
-                     "                     [--suppress-bootloader-mem]\n"
-                     "                     [--serial=hexdigits:offset] {file|STDIN}\n" );
-    fprintf( stderr, "        setsecure\n" );
-    fprintf( stderr, "        configure {BSB|SBV|SSB|EB|HSB}"
-                     " [--suppress-validation] data\n" );
-    fprintf( stderr, "        get     {bootloader-version|ID1|ID2|BSB|SBV|SSB|EB|\n"
-                     "                 manufacturer|family|product-name|\n"
-                     "                 product-revision|HSB}\n" );
-    fprintf( stderr, "        getfuse {LOCK|EPFL|BOOTPROT|BODLEVEL|BODHYST|\n"
-                     "                 BODEN|ISP_BOD_EN|ISP_IO_COND_EN|\n"
-                     "                 ISP_FORCE}\n" );
-    fprintf( stderr, "        setfuse {LOCK|EPFL|BOOTPROT|BODLEVEL|BODHYST|\n"
-                     "                 BODEN|ISP_BOD_EN|ISP_IO_COND_EN|\n"
-                     "                 ISP_FORCE} data\n" );
-    fprintf( stderr, "\n" );
-    fprintf( stderr, "additional details:\n" );
-    fprintf( stderr,
-" launch: Launch from the bootloader into the main program using a watchdog\n"
-"         reset.  To jump directly into the main program use --no-reset.\n");
-    fprintf( stderr,
-"   read: Read the program memory in flash and output non-blank pages in ihex\n"
-"         format.  Use --force to output the entire memory and --bin for binary\n"
-"         output.  User page and eeprom are selected using --user and --eeprom\n");
-    fprintf( stderr,
-"  erase: Erase memory contents if the chip is not blank or always with --force\n");
-    fprintf( stderr,
-"  flash: Flash a program onto device flash memory.  EEPROM and user page are\n"
-"         selected using --eeprom|--user flags. Use --force to ignore warning\n"
-"         when data exists in target memory region.  Bootloader configuration\n"
-"         uses last 4 to 8 bytes of user page, --force always required here.\n");
-    fprintf( stderr, "Note: version 0.6.1 commands still supported.\n");
+
+    const char * info =
+        "\n"
+        "Usage: dfu-programmer target[[:vid:pid][,usb-bus,usb-addr]] command [options] [global-options] [file|data]"
+        "\n"
+        "\n"
+        "global-options:\n"
+        "        --quiet\n"
+        "        --debug level    (level is an integer specifying level of detail)\n"
+        "        --dishonor_interfaceclass ignoring checking usb class interface (removed hardcoded values from code)\n"
+        "        Global options can be used with any command and must come\n"
+        "        after the command and before any file or data value\n"
+        "\n"
+        "command summary:\n"
+        "        launch       [--no-reset]\n"
+        "        read         [--force] [--bin] [(flash)|--user|--eeprom]\n"
+        "        erase        [--force] [--suppress-validation]\n"
+        "        flash        [--force] [(flash)|--user|--eeprom]\n"
+        "                     [--suppress-validation]\n"
+        "                     [--suppress-bootloader-mem]\n"
+        "                     [--serial=hexdigits:offset] {file|STDIN}\n"
+        "        setsecure\n"
+        "        configure {BSB|SBV|SSB|EB|HSB} [--suppress-validation] data\n"
+        "        get     {bootloader-version|ID1|ID2|BSB|SBV|SSB|EB|\n"
+        "                 manufacturer|family|product-name|\n"
+        "                 product-revision|HSB}\n"
+        "        getfuse {LOCK|EPFL|BOOTPROT|BODLEVEL|BODHYST|\n"
+        "                 BODEN|ISP_BOD_EN|ISP_IO_COND_EN|\n"
+        "                 ISP_FORCE}\n"
+        "        setfuse {LOCK|EPFL|BOOTPROT|BODLEVEL|BODHYST|\n"
+        "                 BODEN|ISP_BOD_EN|ISP_IO_COND_EN|\n"
+        "                 ISP_FORCE} data\n"
+        "\n"
+        "additional details:\n"
+        " launch: Launch from the bootloader into the main program using a watchdog\n"
+        "         reset.  To jump directly into the main program use --no-reset.\n"
+        "   read: Read the program memory in flash and output non-blank pages in ihex\n"
+        "         format.  Use --force to output the entire memory and --bin for binary\n"
+        "         output.  User page and eeprom are selected using --user and --eeprom\n"
+        "  erase: Erase memory contents if the chip is not blank or always with --force\n"
+        "  flash: Flash a program onto device flash memory.  EEPROM and user page are\n"
+        "         selected using --eeprom|--user flags. Use --force to ignore warning\n"
+        "         when data exists in target memory region.  Bootloader configuration\n"
+        "         uses last 4 to 8 bytes of user page, --force always required here.\n"
+        "Note: version 0.6.1 commands still supported.\n"
+    ;
+
+    fprintf(stderr, info);
 }
 
 

@@ -140,6 +140,8 @@ dfu_bool dfu_find_interface(struct libusb_device *device,
 
 void dfu_detach_drivers(libusb_device *device, dfu_device_t *dfu_device)
 {
+    TRACE( "%s()\n", __FUNCTION__ );
+
     struct libusb_config_descriptor *config = NULL;
     if (libusb_get_active_config_descriptor(device, &config) == 0)
     {
